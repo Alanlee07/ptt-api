@@ -1,40 +1,33 @@
-from flask import Flask, jsonify
 import requests
 from bs4 import BeautifulSoup
 
-app = Flask(__name__)
-
-@app.route("/")
-def home():
-    return "PTT API running"
-
-@app.route("/ptt")
 def get_ptt():
     url = "https://www.ptt.cc/bbs/Gossiping/index.html"
 
-    session = requests.Session()
-    session.headers.update({
+    headers = {
         "User-Agent": "Mozilla/5.0"
-    })
-    session.cookies.set("over18", "1")
+    }
 
-    res = session.get(url, timeout=10)
+    cookies = {
+        "over18": "1"
+    }
+
+    res = requests.get(url, headers=headers, cookies=cookies)
+
     soup = BeautifulSoup(res.text, "html.parser")
 
-    result = []
+    data = []
 
-    for entry in soup.select(".r-ent"):
-        title = entry.select_one(".title a")
-        push = entry.select_one(".nrec")
+    for item in soup.select(".r-ent"):
+        title = item.select_one(".title").text.strip()
+        link = item.select_one("a")
+        push = item.select_one(".nrec").text.strip()
 
-        if title:
-            push_text = push.text if push else "0"
+        if "爆" in push:
+            data.append({
+                "title": title,
+                "link": "https://www.ptt.cc" + link["href"] if link else "",
+                "push": push
+            })
 
-            if push_text == "爆" or (push_text.isdigit() and int(push_text) >= 100):
-                result.append({
-                    "title": title.text,
-                    "link": "https://www.ptt.cc" + title["href"],
-                    "push": push_text
-                })
-
-    return jsonify(result)
+    return data
