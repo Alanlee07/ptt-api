@@ -3,53 +3,59 @@ import requests
 from bs4 import BeautifulSoup
 import time
 
-app = Flask(__name__)  # 👈 這行是關鍵！
+app = Flask(__name__)
 
-def get_ptt_real_trends(board, pages=3, min_push=10):
+def get_ptt_real_trends(board="Gossiping", pages=3, min_push=10):
     headers = {
-        'User-Agent': 'Mozilla/5.0',
+        "User-Agent": "Mozilla/5.0"
     }
-    cookies = {'over18': '1'}
-    
+    cookies = {
+        "over18": "1"
+    }
+
     current_url = f"https://www.ptt.cc/bbs/{board}/index.html"
     results = []
     exclude_keywords = ['公告', '協尋', '版規', '置底']
 
-    for i in range(pages):
+    for _ in range(pages):
         try:
             res = requests.get(current_url, headers=headers, cookies=cookies, timeout=10)
-            soup = BeautifulSoup(res.text, 'html.parser')
-            posts = soup.find_all('div', class_='r-ent')
-            
+            soup = BeautifulSoup(res.text, "html.parser")
+
+            posts = soup.find_all("div", class_="r-ent")
+
             for post in posts:
-                raw_push = post.find('div', class_='nrec').text.strip()
+                raw_push = post.find("div", class_="nrec").text.strip()
                 push_num = 0
 
                 if raw_push:
-                    if raw_push == '爆': push_num = 100
-                    elif raw_push.startswith('X'): push_num = -10
-                    elif raw_push.isdigit(): push_num = int(raw_push)
+                    if raw_push == "爆":
+                        push_num = 100
+                    elif raw_push.startswith("X"):
+                        push_num = -10
+                    elif raw_push.isdigit():
+                        push_num = int(raw_push)
 
-                title_element = post.find('div', class_='title').find('a')
+                title_element = post.find("div", class_="title").find("a")
                 if not title_element:
                     continue
 
                 title = title_element.text
-                link = "https://www.ptt.cc" + title_element['href']
+                link = "https://www.ptt.cc" + title_element["href"]
 
                 if any(k in title for k in exclude_keywords):
                     continue
 
                 if push_num >= min_push:
                     results.append({
-                        'push': raw_push if raw_push else '0',
-                        'title': title,
-                        'link': link
+                        "push": raw_push if raw_push else "0",
+                        "title": title,
+                        "link": link
                     })
 
-            prev_btn = soup.find('a', string='‹ 上頁')
+            prev_btn = soup.find("a", string="‹ 上頁")
             if prev_btn:
-                current_url = "https://www.ptt.cc" + prev_btn['href']
+                current_url = "https://www.ptt.cc" + prev_btn["href"]
             else:
                 break
 
@@ -61,14 +67,12 @@ def get_ptt_real_trends(board, pages=3, min_push=10):
     return results
 
 
-# 👇 API endpoint
-@app.route("/ptt")
-def ptt():
-    data = get_ptt_real_trends("Gossiping", pages=3, min_push=10)
-    return jsonify(data)
-
-
-# 👇 測試首頁
 @app.route("/")
 def home():
     return "PTT API is running"
+
+
+@app.route("/ptt")
+def ptt():
+    data = get_ptt_real_trends()
+    return jsonify(data)
